@@ -10,14 +10,10 @@ int main(){
     // acceleration due to gravity (pixel/s)/s
     const int gravity{1'500};
 
-    // texture
+    // player texture
     Texture2D playerText = LoadTexture("textures/player-run.png");
     int textureLength{6};
-    Rectangle textureSourceRect;
-    textureSourceRect.width = playerText.width / textureLength;
-    textureSourceRect.height = playerText.height;
-    textureSourceRect.x = 0;
-    textureSourceRect.y = 0;
+    Rectangle textureSourceRect {0, 0, playerText.width / textureLength, playerText.height};
     Rectangle playerSpriteScaled;
     playerSpriteScaled.width = textureSourceRect.width * 3;
     playerSpriteScaled.height = textureSourceRect.height * 3;
@@ -27,15 +23,25 @@ int main(){
     worldPivotPoint.x = 0;
     worldPivotPoint.y = 0;
 
-    // anim
-    int textureFrame{0};
-    const float updateTime{1.0f / 12.0f}; // amount of time before we update the animation frame
-    float runningTime{0.0f};
-
+    // player variables
     int velocity{0};
-
     bool isGrounded{true};
     const int jumpVelocity{-750};
+
+    // enemy texture
+    Texture2D enemyTexture = LoadTexture("textures/fly-eye.png");
+    int enemyTextureLength{4};
+    Rectangle enemyTextSourceRect{0, 0, enemyTexture.width/enemyTextureLength, enemyTexture.height};
+    Rectangle enemySpriteScaled{windowWidth, windowHeight - enemyTextSourceRect.height * 3, enemyTextSourceRect.width * 3, enemyTextSourceRect.height * 3};
+
+    // enemy variables
+    int enemyVelocity{-250};
+
+    // anim
+    int textureFrame{0};
+    int enemyTextureFrame{0};
+    const float updateTime{1.0f / 12.0f}; // amount of time before we update the animation frame
+    float runningTime{0.0f};
     
     
     SetTargetFPS(60);
@@ -50,15 +56,14 @@ int main(){
 
 
         // ground check
-        if(playerSpriteScaled.y + playerSpriteScaled.height <= windowHeight - 3){
+        if(playerSpriteScaled.y + playerSpriteScaled.height <= windowHeight){
             // applying gravity
             velocity += gravity * dT;
         } else {
             velocity = 0;
+            playerSpriteScaled.y = windowHeight - playerSpriteScaled.height;
             isGrounded = true;
         }
-
-
 
         // Jump
         if(IsKeyPressed(KEY_SPACE) && isGrounded){
@@ -66,22 +71,38 @@ int main(){
             isGrounded = false;
         }
 
-        // update position
+        // update player position
         playerSpriteScaled.y += velocity * dT;
+
+        // update enemy position
+        enemySpriteScaled.x += enemyVelocity * dT;
 
         // update animation
         if(runningTime >= updateTime){
-            textureSourceRect.x = textureFrame * textureSourceRect.width;
-            textureFrame = (textureFrame + 1) % textureLength;
+            // update player frame
+            if(isGrounded){
+                textureSourceRect.x = textureFrame * textureSourceRect.width;
+                textureFrame = (textureFrame + 1) % textureLength;
+            }
+
+            // update enemy frame
+            enemyTextSourceRect.x = enemyTextureFrame * enemyTextSourceRect.width;
+            enemyTextureFrame = (enemyTextureFrame + 1) % enemyTextureLength;
+
+            // reset time to update
             runningTime = 0.0f;
         }
 
+        // draw player
         DrawTexturePro(playerText, textureSourceRect, playerSpriteScaled, worldPivotPoint, 0, WHITE);
-        DrawCircle(playerSpriteScaled.x, playerSpriteScaled.y, 5, RED);
+
+        // draw enemy
+        DrawTexturePro(enemyTexture, enemyTextSourceRect, enemySpriteScaled, worldPivotPoint, 0, WHITE);
 
         // stop drawing
         EndDrawing();
     }
     UnloadTexture(playerText);
+    UnloadTexture(enemyTexture);
     CloseWindow();
 }
