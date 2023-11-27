@@ -1,5 +1,16 @@
 #include "raylib.h"
 
+struct AnimData
+{
+    Rectangle imageSourceRect;
+    Rectangle imageRect;
+    int frame;
+    float updateTime;
+    float runningTime;
+    int textureFrameCount;
+};
+
+
 int main(){
     // window dimensions
     const int windowWidth{512};
@@ -12,13 +23,17 @@ int main(){
 
     // player texture
     Texture2D playerText = LoadTexture("textures/player-run.png");
-    int textureLength{6};
-    Rectangle textureSourceRect {0, 0, playerText.width / textureLength, playerText.height};
-    Rectangle playerSpriteScaled;
-    playerSpriteScaled.width = textureSourceRect.width * 3;
-    playerSpriteScaled.height = textureSourceRect.height * 3;
-    playerSpriteScaled.x = windowWidth/2 - playerSpriteScaled.width/2;
-    playerSpriteScaled.y = windowHeight - playerSpriteScaled.height;
+
+    // Player data
+    AnimData playerData{ 
+        {0, 0, playerText.width / 6, playerText.height}, 
+        {windowWidth/2 - playerText.width/2, windowHeight - playerText.height, playerText.width/6 * 3, playerText.height * 3}, 
+        0, 
+        1.0f / 12.0f, 
+        0.0, 
+        6
+    };    
+
     Vector2 worldPivotPoint;
     worldPivotPoint.x = 0;
     worldPivotPoint.y = 0;
@@ -30,25 +45,30 @@ int main(){
 
     // enemy texture
     Texture2D enemyTexture = LoadTexture("textures/fly-eye.png");
-    int enemyTextureLength{4};
-    Rectangle enemyTextSourceRect{0, 0, enemyTexture.width/enemyTextureLength, enemyTexture.height};
-    Rectangle enemySpriteScaled{windowWidth, windowHeight - enemyTextSourceRect.height * 3, enemyTextSourceRect.width * 3, enemyTextSourceRect.height * 3};
+
+    // Enemy data
+    AnimData enemyData{ 
+        {0, 0, enemyTexture.width/4, enemyTexture.height},                                                      // imageSourceRect -> Size of the rect in the sprite png
+        {windowWidth, windowHeight - enemyTexture.height * 3, enemyTexture.width/4 * 3, enemyTexture.height * 3}, // imageRect -> final size after scaling and position
+        0,                                                                                                      // frame -> current frame of the animation
+        1.0f / 12.0f,                                                                                           // updatetime -> number of anim update per second 
+        0.0,                                                                                                    // runningTime -> time elapsed for the current animation
+        4                                                                                                       // textureFrameCount -> numbers of frames in the spritsheet
+    };
+
 
     // enemy variables
     int enemyVelocity{-250};
 
-    // anim
-    int textureFrame{0};
-    int enemyTextureFrame{0};
-    const float updateTime{1.0f / 12.0f}; // amount of time before we update the animation frame
-    float runningTime{0.0f};
     
     
     SetTargetFPS(60);
     while(!WindowShouldClose()){
         // time delta
         float dT{GetFrameTime()};
-        runningTime += dT;
+        playerData.runningTime += dT;
+        enemyData.runningTime += dT;
+
 
         // start drawing
         BeginDrawing();
@@ -56,12 +76,12 @@ int main(){
 
 
         // ground check
-        if(playerSpriteScaled.y + playerSpriteScaled.height <= windowHeight){
+        if(playerData.imageRect.y + playerData.imageRect.height <= windowHeight){
             // applying gravity
             velocity += gravity * dT;
         } else {
             velocity = 0;
-            playerSpriteScaled.y = windowHeight - playerSpriteScaled.height;
+            playerData.imageRect.y = windowHeight - playerData.imageRect.height;
             isGrounded = true;
         }
 
@@ -72,32 +92,36 @@ int main(){
         }
 
         // update player position
-        playerSpriteScaled.y += velocity * dT;
+        playerData.imageRect.y += velocity * dT;
 
         // update enemy position
-        enemySpriteScaled.x += enemyVelocity * dT;
+        enemyData.imageRect.x += enemyVelocity * dT;
 
-        // update animation
-        if(runningTime >= updateTime){
-            // update player frame
+        // update player animation
+        if(playerData.runningTime >= playerData.updateTime){
             if(isGrounded){
-                textureSourceRect.x = textureFrame * textureSourceRect.width;
-                textureFrame = (textureFrame + 1) % textureLength;
+                playerData.imageSourceRect.x = playerData.frame * playerData.imageSourceRect.width;
+                playerData.frame = (playerData.frame + 1) % playerData.textureFrameCount;
             }
 
-            // update enemy frame
-            enemyTextSourceRect.x = enemyTextureFrame * enemyTextSourceRect.width;
-            enemyTextureFrame = (enemyTextureFrame + 1) % enemyTextureLength;
+            // reset time to update
+            playerData.runningTime = 0.0f;
+        }
+
+        // update enemy animation
+        if(enemyData.runningTime >= enemyData.updateTime){
+            enemyData.imageSourceRect.x = enemyData.frame * enemyData.imageSourceRect.width;
+            enemyData.frame = (enemyData.frame + 1) % enemyData.textureFrameCount;
 
             // reset time to update
-            runningTime = 0.0f;
+            enemyData.runningTime = 0.0f;
         }
 
         // draw player
-        DrawTexturePro(playerText, textureSourceRect, playerSpriteScaled, worldPivotPoint, 0, WHITE);
+        DrawTexturePro(playerText, playerData.imageSourceRect, playerData.imageRect, worldPivotPoint, 0, WHITE);
 
         // draw enemy
-        DrawTexturePro(enemyTexture, enemyTextSourceRect, enemySpriteScaled, worldPivotPoint, 0, WHITE);
+        DrawTexturePro(enemyTexture, enemyData.imageSourceRect, enemyData.imageRect, worldPivotPoint, 0, WHITE);
 
         // stop drawing
         EndDrawing();
