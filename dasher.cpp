@@ -63,6 +63,8 @@ int main(){
     // enemy texture
     Texture2D enemyTexture = LoadTexture("textures/fly-eye.png");
     float bgX{0};
+    float mgX{0};
+    float fgX{0};
     // Enemy data
     const int ENEMY_COUNT = 3;
     AnimData enemys[ENEMY_COUNT]{};
@@ -89,6 +91,7 @@ int main(){
     int enemyVelocity{-250};
 
     
+    float finishLine{ enemys[ENEMY_COUNT-1].imageRect.x };
     
     SetTargetFPS(60);
     while(!WindowShouldClose()){
@@ -106,15 +109,35 @@ int main(){
         ClearBackground(WHITE);
 
         bgX -= 20 * dT;
+        mgX -= 40 * dT;
+        fgX -= 80 * dT;
+
         if(bgX <= -background.width*2){
             bgX = 0.0;
+        }
+
+        if(mgX <= -background.width*2){
+            mgX = 0.0;
+        }
+
+        if(fgX <= -background.width*2){
+            fgX = 0.0;
         }
 
         // draw background
         Vector2 bg1Pos{bgX, 0.0};
         Vector2 bg2Pos{bgX + background.width * 2, 0.0};
+        Vector2 mg1Pos{mgX, 0.0};
+        Vector2 mg2Pos{mgX + background.width * 2, 0.0};
+        Vector2 fg1Pos{fgX, 0.0};
+        Vector2 fg2Pos{fgX + background.width * 2, 0.0};
+
         DrawTextureEx(background, bg1Pos, 0.0, 2.0, WHITE);
         DrawTextureEx(background, bg2Pos, 0.0, 2.0, WHITE);
+        DrawTextureEx(midground, mg1Pos, 0.0, 2.0, WHITE);
+        DrawTextureEx(midground, mg2Pos, 0.0, 2.0, WHITE);
+        DrawTextureEx(foreground, fg1Pos, 0.0, 2.0, WHITE);
+        DrawTextureEx(foreground, fg2Pos, 0.0, 2.0, WHITE);
 
 
         // ground check
@@ -141,6 +164,8 @@ int main(){
         {
             enemys[i].imageRect.x += enemyVelocity * dT;
         }
+
+        finishLine += enemyVelocity * dT;        
 
         // update player animation
         if(playerData.runningTime >= playerData.updateTime && isGrounded){
@@ -170,5 +195,7 @@ int main(){
     UnloadTexture(playerText);
     UnloadTexture(enemyTexture);
     UnloadTexture(background);
+    UnloadTexture(midground);
+    UnloadTexture(foreground);
     CloseWindow();
 }
