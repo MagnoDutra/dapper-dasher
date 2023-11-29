@@ -10,16 +10,33 @@ struct AnimData
     int textureFrameCount;
 };
 
+bool isOnAir(AnimData data, int windowHeight){
+   return data.imageRect.y + data.imageRect.height <= windowHeight;
+}
+
+AnimData updateAnimData(AnimData data){
+    data.imageSourceRect.x = data.frame * data.imageSourceRect.width;
+    data.frame = (data.frame + 1) % data.textureFrameCount;
+
+    // reset time to update
+    data.runningTime = 0.0f;
+
+    return data;
+}
 
 int main(){
     // window dimensions
-    const int windowWidth{512};
-    const int windowHeight{380};
-
-    InitWindow(windowWidth, windowHeight, "Dapper Dasher");
+    int windowDimensions[2]{512, 380};
+    
+    InitWindow(windowDimensions[0], windowDimensions[1], "Dapper Dasher");
 
     // acceleration due to gravity (pixel/s)/s
     const int gravity{1'500};
+
+    // background image
+    Texture2D background = LoadTexture("textures/far-buildings.png");
+    Texture2D midground = LoadTexture("textures/back-buildings.png");
+    Texture2D foreground = LoadTexture("textures/foreground.png");
 
     // player texture
     Texture2D playerText = LoadTexture("textures/player-run.png");
@@ -27,7 +44,7 @@ int main(){
     // Player data
     AnimData playerData{ 
         {0, 0, playerText.width / 6, playerText.height}, 
-        {windowWidth/2 - playerText.width/2, windowHeight - playerText.height, playerText.width/6 * 3, playerText.height * 3}, 
+        {windowDimensions[0]/2 - playerText.width/2, windowDimensions[1] - playerText.height, playerText.width/6 * 3, playerText.height * 3}, 
         0, 
         1.0f / 12.0f, 
         0.0, 
@@ -45,17 +62,28 @@ int main(){
 
     // enemy texture
     Texture2D enemyTexture = LoadTexture("textures/fly-eye.png");
-
+    float bgX{0};
     // Enemy data
-    AnimData enemyData{ 
-        {0, 0, enemyTexture.width/4, enemyTexture.height},                                                      // imageSourceRect -> Size of the rect in the sprite png
-        {windowWidth, windowHeight - enemyTexture.height * 3, enemyTexture.width/4 * 3, enemyTexture.height * 3}, // imageRect -> final size after scaling and position
-        0,                                                                                                      // frame -> current frame of the animation
-        1.0f / 12.0f,                                                                                           // updatetime -> number of anim update per second 
-        0.0,                                                                                                    // runningTime -> time elapsed for the current animation
-        4                                                                                                       // textureFrameCount -> numbers of frames in the spritsheet
-    };
+    const int ENEMY_COUNT = 3;
+    AnimData enemys[ENEMY_COUNT]{};
 
+    for (int i = 0; i < ENEMY_COUNT; i++)
+    {
+        enemys[i].imageSourceRect.x = 0;
+        enemys[i].imageSourceRect.y = 0;
+        enemys[i].imageSourceRect.width = enemyTexture.width/4;
+        enemys[i].imageSourceRect.height = enemyTexture.height;
+
+        enemys[i].imageRect.x = windowDimensions[0] + i * 300;
+        enemys[i].imageRect.y = windowDimensions[1] - enemyTexture.height * 3;
+        enemys[i].imageRect.width = enemyTexture.width/4 * 3;
+        enemys[i].imageRect.height = enemyTexture.height * 3;
+
+        enemys[i].frame = 0;
+        enemys[i].textureFrameCount = 4;
+        enemys[i].runningTime = 0.0;
+        enemys[i].updateTime = 1.0f / 12.0f;
+    }
 
     // enemy variables
     int enemyVelocity{-250};
@@ -67,21 +95,35 @@ int main(){
         // time delta
         float dT{GetFrameTime()};
         playerData.runningTime += dT;
-        enemyData.runningTime += dT;
 
+        for (int i = 0; i < ENEMY_COUNT; i++)
+        {
+            enemys[i].runningTime += dT;
+        }
 
         // start drawing
         BeginDrawing();
         ClearBackground(WHITE);
 
+        bgX -= 20 * dT;
+        if(bgX <= -background.width*2){
+            bgX = 0.0;
+        }
+
+        // draw background
+        Vector2 bg1Pos{bgX, 0.0};
+        Vector2 bg2Pos{bgX + background.width * 2, 0.0};
+        DrawTextureEx(background, bg1Pos, 0.0, 2.0, WHITE);
+        DrawTextureEx(background, bg2Pos, 0.0, 2.0, WHITE);
+
 
         // ground check
-        if(playerData.imageRect.y + playerData.imageRect.height <= windowHeight){
+        if(isOnAir(playerData, windowDimensions[1])){
             // applying gravity
             velocity += gravity * dT;
         } else {
             velocity = 0;
-            playerData.imageRect.y = windowHeight - playerData.imageRect.height;
+            playerData.imageRect.y = windowDimensions[1] - playerData.imageRect.height;
             isGrounded = true;
         }
 
@@ -95,38 +137,38 @@ int main(){
         playerData.imageRect.y += velocity * dT;
 
         // update enemy position
-        enemyData.imageRect.x += enemyVelocity * dT;
+        for (int i = 0; i < 3; i++)
+        {
+            enemys[i].imageRect.x += enemyVelocity * dT;
+        }
 
         // update player animation
-        if(playerData.runningTime >= playerData.updateTime){
-            if(isGrounded){
-                playerData.imageSourceRect.x = playerData.frame * playerData.imageSourceRect.width;
-                playerData.frame = (playerData.frame + 1) % playerData.textureFrameCount;
-            }
-
-            // reset time to update
-            playerData.runningTime = 0.0f;
+        if(playerData.runningTime >= playerData.updateTime && isGrounded){
+            playerData = updateAnimData(playerData);
         }
 
         // update enemy animation
-        if(enemyData.runningTime >= enemyData.updateTime){
-            enemyData.imageSourceRect.x = enemyData.frame * enemyData.imageSourceRect.width;
-            enemyData.frame = (enemyData.frame + 1) % enemyData.textureFrameCount;
-
-            // reset time to update
-            enemyData.runningTime = 0.0f;
-        }
+        for (int i = 0; i < ENEMY_COUNT; i++)
+        {
+            if(enemys[i].runningTime >= enemys[i].updateTime){
+                enemys[i] = updateAnimData(enemys[i]);
+            }
+        }     
 
         // draw player
         DrawTexturePro(playerText, playerData.imageSourceRect, playerData.imageRect, worldPivotPoint, 0, WHITE);
 
         // draw enemy
-        DrawTexturePro(enemyTexture, enemyData.imageSourceRect, enemyData.imageRect, worldPivotPoint, 0, WHITE);
+        for (int i = 0; i < ENEMY_COUNT; i++)
+        {
+            DrawTexturePro(enemyTexture, enemys[i].imageSourceRect, enemys[i].imageRect, worldPivotPoint, 0, WHITE);
+        }
 
         // stop drawing
         EndDrawing();
     }
     UnloadTexture(playerText);
     UnloadTexture(enemyTexture);
+    UnloadTexture(background);
     CloseWindow();
 }
