@@ -90,7 +90,7 @@ int main(){
     // enemy variables
     int enemyVelocity{-250};
 
-    
+    bool collision{false};
     float finishLine{ enemys[ENEMY_COUNT-1].imageRect.x };
     
     SetTargetFPS(60);
@@ -178,16 +178,31 @@ int main(){
             if(enemys[i].runningTime >= enemys[i].updateTime){
                 enemys[i] = updateAnimData(enemys[i]);
             }
-        }     
-
-        // draw player
-        DrawTexturePro(playerText, playerData.imageSourceRect, playerData.imageRect, worldPivotPoint, 0, WHITE);
-
-        // draw enemy
-        for (int i = 0; i < ENEMY_COUNT; i++)
-        {
-            DrawTexturePro(enemyTexture, enemys[i].imageSourceRect, enemys[i].imageRect, worldPivotPoint, 0, WHITE);
         }
+
+
+
+        for(AnimData enemy : enemys){
+            if(CheckCollisionRecs(enemy.imageRect, playerData.imageRect)){
+                collision = true;
+            }
+        }
+
+        if(collision){
+            DrawText("You lose", windowDimensions[0]/4, windowDimensions[1]/4, 50, RED);
+        }else if(playerData.imageRect.x >= finishLine){
+            DrawText("You WON", windowDimensions[0]/2, windowDimensions[1]/4, 50, GREEN);       
+        }else{
+            // draw player
+            DrawTexturePro(playerText, playerData.imageSourceRect, playerData.imageRect, worldPivotPoint, 0, WHITE);
+
+            // draw enemy
+            for (int i = 0; i < ENEMY_COUNT; i++)
+            {
+                DrawTexturePro(enemyTexture, enemys[i].imageSourceRect, enemys[i].imageRect, worldPivotPoint, 0, WHITE);
+            }
+        }
+       
 
         // stop drawing
         EndDrawing();
